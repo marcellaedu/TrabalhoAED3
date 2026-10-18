@@ -402,6 +402,7 @@ int lerNoIndice(int posicao, NoB *no) {
     return ok;
 }
 
+
 //Grava um nó da árvore B em uma posição lógica.
 //Entrada: posição lógica e ponteiro constante para o nó.
 //Retorno: 1 se a gravação for realizada; 0 caso contrário.
@@ -427,8 +428,9 @@ int gravarNoIndice(int posicao, const NoB *no) {
     ok = fseek(arq, deslocamentoIndice(posicao), SEEK_SET) == 0 &&
          fwrite(no, sizeof(*no), 1, arq) == 1;
 
-    if (ok && posicao == cab.topo) {
-        cab.topo++;
+    // Atualiza o topo e verifica se o cabecalho foi gravado corretamente.
+    if (ok && posicao >= cab.topo - 1) {
+        cab.topo = posicao + 1;
         ok = gravarCabIndicesAberto(arq, &cab);
     }
 
@@ -437,46 +439,55 @@ int gravarNoIndice(int posicao, const NoB *no) {
     return ok;
 }
 
-//Obtém uma posição para um novo nó da árvore B, reutilizando posições livres.
-//Entrada: não possui parâmetros.
-//Retorno: posição lógica disponível ou -1 em caso de erro.
-//Pré-condição: o arquivo de índices deve estar inicializado.
-//Pós-condição: uma posição é retirada da lista de livres ou o topo é avançado.
+
+//Obter uma posicao para um novo no da Arvore B.
+//Entrada: Nao possui parametros.
+//Retorno: Posicao disponivel ou -1 em caso de erro.
+//Pre-condicao: O arquivo de indices deve estar inicializado.
+//Pos-condicao: A posicao e retirada da lista de livres ou o topo e avancado.
 int alocarNoIndice(void) {
-    FILE *arq = fopen(ARQUIVO_INDICES, "rb+");
     CabecalhoIndices cab;
     NoB no;
+    FILE *arq;
     int pos;
+    int leituraOk;
 
-    if (arq == NULL)
+    if (!lerCabecalhoIndices(&cab))
         return -1;
-
-    if (!lerCabIndicesAberto(arq, &cab)) {
-        fclose(arq);
-        return -1;
-    }
 
     if (cab.livres != -1) {
         pos = cab.livres;
-        if (pos < 0 || pos >= cab.topo ||
-            fseek(arq, deslocamentoIndice(pos), SEEK_SET) != 0 ||
-            fread(&no, sizeof(no), 1, arq) != 1) {
-            fclose(arq);
+
+        if (pos < 0 || pos >= cab.topo)
             return -1;
-        }
+
+        arq = fopen(ARQUIVO_INDICES, "rb");
+        if (arq == NULL)
+            return -1;
+
+        leituraOk = fseek(arq, deslocamentoIndice(pos), SEEK_SET) == 0 &&
+                    fread(&no, sizeof(no), 1, arq) == 1;
+
+        if (fclose(arq) != 0)
+            leituraOk = 0;
+
+        if (!leituraOk)
+            return -1;
+
         cab.livres = no.proxLivre;
-    } else {
-        pos = cab.topo;
-        cab.topo++;
+
+        if (!gravarCabecalhoIndices(&cab))
+            return -1;
+
+        return pos;
     }
 
-    if (!gravarCabIndicesAberto(arq, &cab)) {
-        fclose(arq);
-        return -1;
-    }
+    pos = cab.topo;
+    cab.topo++;
 
-    if (fclose(arq) != 0)
+    if (!gravarCabecalhoIndices(&cab))
         return -1;
+
     return pos;
 }
 
@@ -518,4 +529,130 @@ int liberarNoIndice(int posicao) {
     if (fclose(arq) != 0)
         ok = 0;
     return ok;
+}
+
+
+//Grava um novo produto no arquivo de dados.
+//Entrada: produto e ponteiro para receber a posição lógica.
+//Retorno: 1 se a gravação for realizada; 0 caso contrário.
+//Pré-condição: produto e posicao devem ser válidos e os arquivos inicializados.
+//Pós-condição: o produto é gravado e sua posição lógica é retornada.
+int gravarNovoProduto(const Produto *produto, int *posicao)
+{
+    RegistroDados registro;
+    int novaPosicao;
+
+    if (produto == NULL || posicao == NULL)
+        return 0;
+
+    if (!validarProduto(produto))
+        return 0;
+
+    novaPosicao = alocarRegistroDados();
+
+    if (novaPosicao < 0)
+        return 0;
+
+    registro.produto = *produto;
+    registro.proxLivre = -1;
+
+    if (!gravarRegistroDados(novaPosicao, &registro)) {
+        liberarRegistroDados(novaPosicao);
+        return 0;
+    }
+
+    *posicao = novaPosicao;
+    return 1;
+}
+
+//Imprime a lista de nos livres do arquivo de indices.
+//Entrada: Nao possui parametros.
+//Retorno: Nao possui retorno.
+//Pre-condicao: O arquivo de indices deve estar inicializado.
+//Pos-condicao: As posicoes dos nos livres sao exibidas na tela.
+void imprimirListaLivresIndices(void){
+    CabecalhoIndices cab;
+    NoB no;
+    int posicao;
+    int quantidade = 0;
+
+    if (!lerCabecalhoIndices(&cab)) {
+        printf("Erro ao ler o arquivo de indices.\n");
+        return;
+    }
+
+    posicao = cab.livres;
+    printf("\nLista de nos livres do arquivo de indices:\n");
+
+    if (posicao == -1) {
+        printf("Lista vazia.\n");
+        return;
+    }
+
+    while (posicao != -1) {
+        if (posicao < 0 || posicao >= cab.topo ||
+            quantidade >= cab.topo) {
+            printf("\nErro: lista de livres invalida.\n");
+            return;
+        }
+
+        if (!lerNoIndice(posicao, &no)) {
+            printf("\nErro ao ler um no livre.\n");
+            return;
+        }
+
+        printf("Posicao [%d]", posicao);
+
+        posicao = no.proxLivre;
+        quantidade++;
+
+        if (posicao != -1)
+            printf(" -> ");
+    }
+}
+
+//Imprime a lista de registros livres do arquivo de dados.
+//Entrada: Nao possui parametros.
+//Retorno: Nao possui retorno.
+//Pre-condicao: O arquivo de dados deve estar inicializado.
+//Pos-condicao: As posicoes dos registros livres sao exibidas na tela.
+void imprimirListaLivresDados(void){
+    CabecalhoDados cab;
+    RegistroDados registro;
+    int posicao;
+    int quantidade = 0;
+
+    if (!lerCabecalhoDados(&cab)) {
+        printf("Erro ao ler o arquivo de dados.\n");
+        return;
+    }
+
+    posicao = cab.livres;
+    printf("\nLista de registros livres do arquivo de dados:\n");
+
+    if (posicao == -1) {
+        printf("Lista vazia.\n");
+        return;
+    }
+
+    while (posicao != -1) {
+        if (posicao < 0 || posicao >= cab.topo ||
+            quantidade >= cab.topo) {
+            printf("\nErro: lista de livres invalida.\n");
+            return;
+        }
+
+        if (!lerRegistroDados(posicao, &registro)) {
+            printf("\nErro ao ler um registro livre.\n");
+            return;
+        }
+
+        printf("Posicao [%d]", posicao);
+
+        posicao = registro.proxLivre;
+        quantidade++;
+
+        if (posicao != -1)
+            printf(" -> ");
+    }
 }

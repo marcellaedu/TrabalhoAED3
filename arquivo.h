@@ -7,6 +7,7 @@
 #define ARQUIVO_DADOS "dados.dat"
 #define ARQUIVO_INDICES "indices.dat"
 
+
 typedef struct {
     int topo;
     int livres;
@@ -113,5 +114,27 @@ int alocarNoIndice(void);
 //Pré-condição: posicao deve identificar um nó existente e ocupado.
 //Pós-condição: a posição passa a ser a cabeça da lista de nós livres.
 int liberarNoIndice(int posicao);
+
+
+//Grava um novo produto no arquivo de dados.
+//Entrada: produto e ponteiro para receber a posição lógica.
+//Retorno: 1 se a gravação for realizada; 0 caso contrário.
+//Pré-condição: produto e posicao devem ser válidos e os arquivos inicializados.
+//Pós-condição: o produto é gravado e sua posição lógica é retornada.
+int gravarNovoProduto(const Produto *produto, int *posicao);
+
+//Imprime a lista de nos livres do arquivo de indices.
+//Entrada: Nao possui parametros.
+//Retorno: Nao possui retorno.
+//Pre-condicao: O arquivo de indices deve estar inicializado.
+//Pos-condicao: As posicoes dos nos livres sao exibidas na tela.
+void imprimirListaLivresIndices(void);
+
+//Imprime a lista de registros livres do arquivo de dados.
+//Entrada: Nao possui parametros.
+//Retorno: Nao possui retorno.
+//Pre-condicao: O arquivo de dados deve estar inicializado.
+//Pos-condicao: As posicoes dos registros livres sao exibidas na tela.
+void imprimirListaLivresDados(void);
 
 #endif

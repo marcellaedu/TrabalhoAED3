@@ -28,6 +28,13 @@ int lerProduto(Produto *p);
 //Pós-condição: nenhum campo do produto é alterado.
 int validarProduto(const Produto *p);
 
+//Converte um preco com virgula ou ponto decimal.
+//Entrada: Texto do preco e endereco para armazenar o valor.
+//Retorno: 1 se valido; 0 caso contrario.
+//Pre-condicao: preco deve apontar para uma variavel valida.
+//Pos-condicao: O preco convertido e armazenado quando valido.
+int converterPreco(const char *texto, float *preco);
+
 //Imprime todos os campos de um produto.
 //Entrada: estrutura Produto a ser impressa.
 //Retorno: não possui retorno.

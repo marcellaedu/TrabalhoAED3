@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include "produto.h"
 
 //Remove a quebra de linha do final de uma string, quando existir.
@@ -60,12 +61,46 @@ int lerProduto(Produto *p) {
         sscanf(linha, "%d", &p->estoque) != 1)
         return 0;
 
-    printf("Preco (use ponto como separador decimal): ");
+    printf("Preco: ");
     if (!lerLinha(linha, sizeof(linha)) ||
-        sscanf(linha, "%f", &p->preco) != 1)
+        !converterPreco(linha, &p->preco))
         return 0;
 
     return validarProduto(p);
+}
+
+//Converte um preco com virgula ou ponto decimal.
+//Entrada: Texto do preco e endereco para armazenar o valor.
+//Retorno: 1 se valido; 0 caso contrario.
+//Pre-condicao: preco deve apontar para uma variavel valida.
+//Pos-condicao: O preco convertido e armazenado quando valido.
+int converterPreco(const char *texto, float *preco){
+    char numero[100];
+    char *fim;
+    float valor;
+
+    if (texto == NULL || preco == NULL ||
+        strlen(texto) == 0 || strlen(texto) >= sizeof(numero))
+        return 0;
+
+    strcpy(numero, texto);
+
+    for (int i = 0; numero[i] != '\0'; i++)
+    {
+        if (numero[i] == ',')
+            numero[i] = '.';
+        else if (numero[i] == '.' && strchr(numero + i + 1, '.') != NULL)
+            return 0;
+    }
+
+    valor = strtof(numero, &fim);
+
+    if (fim == numero || *fim != '\0' ||
+        !isfinite(valor) || valor < 0)
+        return 0;
+
+    *preco = valor;
+    return 1;
 }
 
 //Verifica se os dados de um produto respeitam as regras básicas.
@@ -98,13 +133,20 @@ int validarProduto(const Produto *p) {
 //Retorno: não possui retorno.
 //Pré-condição: o produto deve conter campos inicializados.
 //Pós-condição: os dados do produto são exibidos na saída padrão.
-void imprimirProduto(Produto p) {
+void imprimirProduto(Produto p){
+    char precoTexto[50];
+    snprintf(precoTexto, sizeof(precoTexto), "%.2f", p.preco);
+    for (int i = 0; precoTexto[i] != '\0'; i++){
+        if (precoTexto[i] == '.')
+            precoTexto[i] = ',';
+    }
+
     printf("Codigo: %d\n", p.codigo);
     printf("Nome: %s\n", p.nome);
     printf("Marca: %s\n", p.marca);
     printf("Categoria: %s\n", p.categoria);
     printf("Estoque: %d\n", p.estoque);
-    printf("Preco: R$ %.2f\n", p.preco);
+    printf("Preco: R$ %s\n", precoTexto);
 }
 
 //Atualiza o preço de um produto.
